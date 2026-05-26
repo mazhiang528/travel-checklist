@@ -1,0 +1,15 @@
+{
+  "name": "环球打卡 - 世界景点清单",
+  "short_name": "环球打卡",
+  "description": "收录全球1000+景点，记录你的旅行足迹",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0f0f1a",
+  "theme_color": "#1a1a2e",
+  "orientation": "portrait-primary",
+  "icons": [{
+    "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.92em' font-size='88'>🌍</text></svg>",
+    "sizes": "any",
+    "type": "image/svg+xml"
+  }]
+}

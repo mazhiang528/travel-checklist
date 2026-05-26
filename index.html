@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="环球打卡">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="description" content="收录全球1000+景点，记录你的旅行足迹">
+<title>环球打卡 - 世界景点清单</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0f0f1a;--card:#1a1a2e;--accent:#e94560;--accent2:#f39c12;
+    --text:#eee;--text2:#999;--border:#2a2a3e;--green:#2ecc71;
+  }
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;
+    -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;
+  }
+  .container{max-width:600px;margin:0 auto;padding:0}
+
+  /* Header */
+  header{
+    position:sticky;top:0;z-index:100;
+    background:linear-gradient(180deg,var(--bg) 80%,transparent);
+    padding:12px 16px 8px;
+  }
+  .head-inner{
+    background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);
+    border-radius:16px;padding:16px;border:1px solid var(--border);
+  }
+  .head-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .logo{font-size:22px;font-weight:800;letter-spacing:1px}
+  .logo span{color:var(--accent)}
+  .reset-btn{
+    background:none;border:1px solid var(--border);color:var(--text2);
+    padding:6px 12px;border-radius:14px;font-size:11px;cursor:pointer;
+    transition:all .2s;
+  }
+  .reset-btn:active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  .stats{display:flex;gap:8px}
+  .stat-card{
+    flex:1;background:rgba(255,255,255,0.04);border-radius:12px;
+    padding:10px 12px;text-align:center;
+  }
+  .stat-num{font-size:20px;font-weight:700;transition:all .3s}
+  .stat-label{font-size:10px;color:var(--text2);margin-top:2px}
+  .stat-card.v .stat-num{color:var(--green)}
+  .stat-card.p .stat-num{color:var(--accent2)}
+
+  .progress-wrap{margin-top:10px}
+  .progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+  .progress-fill{
+    height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));
+    border-radius:3px;transition:width .4s ease;
+  }
+  .progress-text{font-size:11px;color:var(--text2);margin-top:4px;text-align:center}
+
+  /* Search + Filters */
+  .search-wrap{position:relative;padding:0 16px;margin-bottom:8px}
+  .search-icon{position:absolute;left:28px;top:50%;transform:translateY(-50%);pointer-events:none}
+  .search-input{
+    width:100%;padding:12px 16px 12px 42px;border-radius:25px;
+    border:1px solid var(--border);background:var(--card);color:var(--text);
+    font-size:15px;outline:none;transition:border-color .2s;
+  }
+  .search-input:focus{border-color:var(--accent)}
+  .search-clear{
+    position:absolute;right:28px;top:50%;transform:translateY(-50%);
+    background:none;border:none;color:var(--text2);font-size:18px;
+    cursor:pointer;display:none;padding:4px;
+  }
+
+  .filters{
+    display:flex;gap:6px;padding:0 16px;margin-bottom:8px;
+    overflow-x:auto;scrollbar-width:none;
+  }
+  .filters::-webkit-scrollbar{display:none}
+  .filter-btn{
+    flex-shrink:0;padding:7px 14px;border-radius:20px;
+    border:1px solid var(--border);background:var(--card);
+    color:var(--text2);font-size:12px;cursor:pointer;
+    transition:all .2s;white-space:nowrap;
+  }
+  .filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .filter-btn .count{font-size:10px;margin-left:2px;opacity:.7}
+
+  /* Sort */
+  .sort-bar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 16px;margin-bottom:8px;
+  }
+  .result-info{font-size:12px;color:var(--text2)}
+  .sort-group{display:flex;gap:4px}
+  .sort-btn{
+    background:none;border:none;color:var(--text2);font-size:11px;
+    cursor:pointer;padding:5px 10px;border-radius:12px;transition:all .15s;
+  }
+  .sort-btn.active{color:var(--accent);background:rgba(233,69,96,0.1)}
+
+  /* Country Groups */
+  .country-header{
+    display:flex;align-items:center;gap:8px;padding:12px 16px 6px;
+    cursor:pointer;position:sticky;top:178px;background:var(--bg);z-index:5;
+    transition:background .2s;
+  }
+  .country-name{font-weight:700;font-size:14px}
+  .country-meta{font-size:11px;color:var(--text2);margin-left:4px}
+  .country-done{font-size:11px;color:var(--green);margin-left:auto;white-space:nowrap}
+  .country-done:empty{display:none}
+  .country-arrow{color:var(--text2);transition:transform .3s;flex-shrink:0}
+  .country-header.collapsed .country-arrow{transform:rotate(-90deg)}
+
+  .attractions{overflow:hidden;transition:max-height .35s ease}
+  .attractions.collapsed{max-height:0!important}
+
+  .attr-item{
+    display:flex;align-items:center;gap:12px;padding:11px 16px;
+    border-bottom:1px solid rgba(255,255,255,0.03);cursor:pointer;
+    transition:background .15s;
+  }
+  .attr-item:active{background:rgba(255,255,255,0.03)}
+  .attr-item.visited{opacity:.6}
+  .attr-item.visited .attr-name{text-decoration:line-through;text-decoration-color:var(--green)}
+
+  .cb{
+    width:24px;height:24px;border-radius:50%;border:2px solid var(--border);
+    flex-shrink:0;display:flex;align-items:center;justify-content:center;
+    transition:all .25s;font-size:13px;
+  }
+  .attr-item.visited .cb{background:var(--green);border-color:var(--green);color:#fff}
+
+  .attr-info{flex:1;min-width:0}
+  .attr-name{font-size:14px;font-weight:500;line-height:1.3}
+  .attr-meta{font-size:11px;color:var(--text2);margin-top:2px}
+  .attr-tag{
+    font-size:10px;padding:3px 10px;border-radius:10px;
+    background:var(--border);color:var(--text2);flex-shrink:0;
+  }
+
+  /* Empty & Loading */
+  .empty{
+    text-align:center;padding:60px 20px;color:var(--text2);
+  }
+  .empty-icon{font-size:56px;margin-bottom:12px}
+  .empty-text{font-size:15px}
+  .empty-sub{font-size:12px;color:var(--text2);margin-top:6px}
+
+  /* FABs */
+  .fab-group{position:fixed;bottom:24px;right:20px;z-index:200;display:flex;flex-direction:column;gap:10px}
+  .fab{
+    width:46px;height:46px;border-radius:50%;border:none;color:#fff;font-size:20px;
+    cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.3);transition:transform .2s;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .fab:active{transform:scale(.9)}
+  .fab-top{background:var(--card);border:1px solid var(--border);color:var(--text)}
+  .fab-stats{background:var(--accent);color:#fff}
+
+  /* Toast */
+  .toast{
+    position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
+    background:#333;color:#fff;padding:10px 24px;border-radius:20px;
+    font-size:13px;z-index:300;opacity:0;transition:opacity .3s;
+    pointer-events:none;white-space:nowrap;
+  }
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="container" id="app">
+  <header>
+    <div class="head-inner">
+      <div class="head-top">
+        <div class="logo">环球<span>打卡</span></div>
+        <button class="reset-btn" onclick="resetAll()">重置数据</button>
+      </div>
+      <div class="stats">
+        <div class="stat-card v"><div class="stat-num" id="sVisited">0</div><div class="stat-label">已打卡</div></div>
+        <div class="stat-card"><div class="stat-num" id="sTotal">0</div><div class="stat-label">总景点</div></div>
+        <div class="stat-card"><div class="stat-num" id="sCountries">0</div><div class="stat-label">国家/地区</div></div>
+        <div class="stat-card p"><div class="stat-num" id="sPct">0%</div><div class="stat-label">完成度</div></div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="pFill" style="width:0%"></div></div>
+        <div class="progress-text" id="pText">开始你的环球打卡之旅吧！</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input class="search-input" id="searchInput" placeholder="搜索景点、国家、城市..." autocomplete="off">
+    <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
+  </div>
+
+  <div class="filters" id="filters"></div>
+
+  <div class="sort-bar">
+    <span class="result-info" id="resultInfo"></span>
+    <div class="sort-group">
+      <button class="sort-btn active" data-sort="default" onclick="setSort('default',this)">默认</button>
+      <button class="sort-btn" data-sort="name" onclick="setSort('name',this)">A-Z</button>
+      <button class="sort-btn" data-sort="visited" onclick="setSort('visited',this)">已打卡优先</button>
+    </div>
+  </div>
+
+  <div id="list"><div class="empty"><div class="empty-icon">🌍</div><div class="empty-text">加载中...</div></div></div>
+</div>
+
+<div class="fab-group">
+  <button class="fab fab-stats" onclick="scrollToTop()">↑</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="data.js"></script>
+<script>
+// ============ STATE ============
+const STORAGE_KEY = 'travel_visited_v2';
+let visited = new Set();
+try {
+  visited = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+} catch(e) { visited = new Set(); }
+
+let currentContinent = 'all';
+let currentSort = 'default';
+let collapsedCountries = new Set();
+let totalCount = 0;
+
+// ============ HELPERS ============
+function getKey(a) { return a.n + '|' + a.co + '|' + a.ci; }
+function isVisited(a) { return visited.has(getKey(a)); }
+function saveVisited() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...visited]));
+}
+
+// Build a key→attraction lookup for fast toggle from onclick
+let attrByKey;
+function buildAttrMap() {
+  if (attrByKey) return;
+  attrByKey = new Map();
+  if (typeof attractions === 'undefined') return;
+  for (const a of attractions) attrByKey.set(getKey(a), a);
+}
+
+function toggleVisited(key) {
+  // Clear text selection from double-tap
+  buildAttrMap();
+  const a = attrByKey.get(key);
+  if (!a) return;
+  if (visited.has(key)) { visited.delete(key); }
+  else { visited.add(key); }
+  saveVisited();
+  renderAll();
+  showToast(visited.has(key) ? '✅ 已打卡：' + a.n : '已取消打卡');
+}
+
+function debounce(fn, d) {
+  let t; return function(...a) { clearTimeout(t); t = setTimeout(()=>fn.apply(this,a), d); };
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tid); t._tid = setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+function scrollToTop() { window.scrollTo({top:0,behavior:'smooth'}); }
+
+// ============ FILTER & SORT ============
+function getFiltered() {
+  if (typeof attractions === 'undefined') return [];
+  let list = [...attractions];
+  if (currentContinent !== 'all') {
+    list = list.filter(a => a.ct === currentContinent);
+  }
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (q) {
+    list = list.filter(a =>
+      a.n.toLowerCase().includes(q) || a.co.toLowerCase().includes(q) ||
+      a.ci.toLowerCase().includes(q) || a.t.toLowerCase().includes(q)
+    );
+  }
+  if (currentSort === 'name') {
+    list.sort((a,b) => a.n.localeCompare(b.n, 'zh-CN'));
+  } else if (currentSort === 'visited') {
+    list.sort((a,b) => (isVisited(b)?1:0) - (isVisited(a)?1:0));
+  }
+  return list;
+}
+
+// ============ RENDER ============
+function renderStats() {
+  totalCount = typeof attractions !== 'undefined' ? attractions.length : 0;
+  let vc = 0;
+  const vCountries = new Set();
+  const allCountries = new Set();
+  if (typeof attractions !== 'undefined') {
+    for (const a of attractions) {
+      allCountries.add(a.co);
+      if (isVisited(a)) { vc++; vCountries.add(a.co); }
+    }
+  }
+  const pct = totalCount > 0 ? Math.round((vc / totalCount) * 100) : 0;
+
+  document.getElementById('sVisited').textContent = vc;
+  document.getElementById('sTotal').textContent = totalCount;
+  document.getElementById('sCountries').textContent = allCountries.size;
+  document.getElementById('sPct').textContent = pct + '%';
+  document.getElementById('pFill').style.width = pct + '%';
+
+  let txt;
+  if (vc === 0) txt = '开始你的环球打卡之旅吧！';
+  else if (pct < 5) txt = `已打卡 ${vc} 个景点，继续探索世界！`;
+  else if (pct < 20) txt = `不错！已解锁 ${pct}% 的世界景点`;
+  else if (pct < 50) txt = `旅行达人！已完成 ${pct}% 🌟`;
+  else if (pct < 80) txt = `环球旅行家！已完成 ${pct}% 🎉`;
+  else txt = `传奇旅行者！已完成 ${pct}% 👑`;
+  document.getElementById('pText').textContent = txt;
+}
+
+function renderFilters() {
+  if (typeof attractions === 'undefined') return;
+  const continents = ['亚洲','欧洲','北美洲','南美洲','非洲','大洋洲'];
+  const counts = {all: attractions.length};
+  for (const ct of continents) {
+    counts[ct] = attractions.filter(a => a.ct === ct).length;
+  }
+  const labels = {
+    all:'全部', '亚洲':'亚洲', '欧洲':'欧洲', '北美洲':'北美洲',
+    '南美洲':'南美洲', '非洲':'非洲', '大洋洲':'大洋洲'
+  };
+  let html = '';
+  for (const [key, val] of Object.entries(labels)) {
+    const active = currentContinent === key ? ' active' : '';
+    html += `<button class="filter-btn${active}" data-continent="${key}">${val}<span class="count">${counts[key]}</span></button>`;
+  }
+  document.getElementById('filters').innerHTML = html;
+}
+
+function renderResultInfo() {
+  const filtered = getFiltered();
+  let vc = 0;
+  for (const a of filtered) { if (isVisited(a)) vc++; }
+  document.getElementById('resultInfo').textContent =
+    `共 ${filtered.length} 个 · 已打卡 ${vc} 个`;
+}
+
+function renderList() {
+  const filtered = getFiltered();
+  const listEl = document.getElementById('list');
+  if (totalCount === 0) {
+    listEl.innerHTML = '<div class="empty"><div class="empty-icon">🌍</div><div class="empty-text">加载中...</div></div>';
+    return;
+  }
+  if (filtered.length === 0) {
+    listEl.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">没有找到匹配的景点</div><div class="empty-sub">试试别的搜索词或切换大洲</div></div>';
+    return;
+  }
+
+  // Group by country
+  const groups = new Map();
+  for (const a of filtered) {
+    if (!groups.has(a.co)) groups.set(a.co, []);
+    groups.get(a.co).push(a);
+  }
+
+  let html = '';
+  for (const [country, attrs] of groups) {
+    const vc = attrs.filter(a => isVisited(a)).length;
+    const tc = attrs.length;
+    const collapsed = collapsedCountries.has(country);
+    html += `
+      <div class="country-header${collapsed?' collapsed':''}" onclick="toggleCountry(this,'${country.replace(/'/g,"\\'")}')">
+        <span class="country-name">${country}</span>
+        <span class="country-meta">${tc}个</span>
+        <span class="country-done">${vc>0?'✓'+vc:''}</span>
+        <span class="country-arrow">▼</span>
+      </div>
+      <div class="attractions${collapsed?' collapsed':''}" style="max-height:${tc*58}px">`;
+    for (const a of attrs) {
+      const v = isVisited(a);
+      html += `
+        <div class="attr-item${v?' visited':''}" onclick="toggleVisited('${getKey(a).replace(/'/g,"\\'")}')" data-key="${getKey(a).replace(/"/g,'&quot;')}">
+          <div class="cb">${v?'✓':''}</div>
+          <div class="attr-info"><div class="attr-name">${a.n}</div><div class="attr-meta">${a.ci}</div></div>
+          <span class="attr-tag">${a.t}</span>
+        </div>`;
+    }
+    html += '</div>';
+  }
+  listEl.innerHTML = html;
+}
+
+function renderAll() {
+  renderStats();
+  renderFilters();
+  renderResultInfo();
+  renderList();
+  updateSearchClear();
+}
+
+function updateSearchClear() {
+  const btn = document.getElementById('searchClear');
+  btn.style.display = document.getElementById('searchInput').value ? 'block' : 'none';
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  updateSearchClear();
+  renderAll();
+}
+
+function toggleCountry(header, country) {
+  if (collapsedCountries.has(country)) {
+    collapsedCountries.delete(country);
+  } else {
+    collapsedCountries.add(country);
+  }
+  header.classList.toggle('collapsed');
+  const ad = header.nextElementSibling;
+  if (ad) ad.classList.toggle('collapsed');
+}
+
+function setSort(sort, el) {
+  currentSort = sort;
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderAll();
+}
+
+function resetAll() {
+  if (!confirm('确定要清除所有打卡记录吗？此操作不可恢复。')) return;
+  visited.clear();
+  saveVisited();
+  renderAll();
+  showToast('所有打卡记录已清除');
+}
+
+// ============ EVENTS ============
+document.getElementById('searchInput').addEventListener('input', debounce(function(){
+  updateSearchClear();
+  renderAll();
+}, 200));
+
+document.getElementById('filters').addEventListener('click', function(e) {
+  const btn = e.target.closest('.filter-btn');
+  if (!btn) return;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentContinent = btn.dataset.continent;
+  renderAll();
+});
+
+// ============ INIT ============
+buildAttrMap();
+if (typeof attractions !== 'undefined') {
+  renderAll();
+} else {
+  window.addEventListener('load', renderAll);
+}
+
+// Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
