@@ -45,9 +45,16 @@
   .reset-btn{
     background:none;border:1px solid var(--border);color:var(--text2);
     padding:6px 12px;border-radius:14px;font-size:11px;cursor:pointer;
-    transition:all .2s;
+    transition:all .2s;flex-shrink:0;
   }
   .reset-btn:active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .install-btn-header{
+    background:var(--accent);color:#fff;border:none;
+    padding:6px 12px;border-radius:14px;font-size:11px;font-weight:600;
+    cursor:pointer;transition:all .2s;flex-shrink:0;
+  }
+  .install-btn-header:active{opacity:.8}
+  .install-btn-header.installed{background:var(--green);opacity:.7;pointer-events:none}
 
   .stats{display:flex;gap:8px}
   .stat-card{
@@ -183,6 +190,35 @@
     cursor:pointer;padding:4px;
   }
 
+  /* iOS Guide Modal */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:500;
+    display:flex;align-items:flex-end;justify-content:center;
+  }
+  .modal-overlay.hidden{display:none}
+  .modal-card{
+    background:var(--card);border-radius:20px 20px 0 0;
+    padding:24px 20px 32px;width:100%;max-width:420px;
+    text-align:center;animation:slideUp .3s ease;
+  }
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .modal-card h3{margin-bottom:16px;font-size:17px}
+  .modal-steps{text-align:left;margin-bottom:20px}
+  .modal-step{
+    display:flex;align-items:center;gap:12px;padding:10px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .modal-step-num{
+    width:28px;height:28px;border-radius:50%;background:var(--accent);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:700;flex-shrink:0;
+  }
+  .modal-step-text{font-size:13px;color:var(--text)}
+  .modal-close{
+    width:100%;padding:12px;background:var(--accent);color:#fff;
+    border:none;border-radius:25px;font-size:15px;font-weight:600;cursor:pointer;
+  }
+
   /* FABs */
   .fab-group{position:fixed;bottom:24px;right:20px;z-index:200;display:flex;flex-direction:column;gap:10px}
   .fab{
@@ -210,7 +246,8 @@
     <div class="head-inner">
       <div class="head-top">
         <div class="logo">环球<span>打卡</span></div>
-        <button class="reset-btn" onclick="resetAll()">重置数据</button>
+        <button class="reset-btn" onclick="resetAll()">重置</button>
+        <button class="install-btn-header" id="installBtnHeader" onclick="triggerInstall()">📲 安装App</button>
       </div>
       <div class="stats">
         <div class="stat-card v"><div class="stat-num" id="sVisited">0</div><div class="stat-label">已打卡</div></div>
@@ -262,6 +299,28 @@
   <button class="fab fab-stats" onclick="scrollToTop()">↑</button>
 </div>
 <div class="toast" id="toast"></div>
+
+<!-- iOS Guide Modal -->
+<div class="modal-overlay hidden" id="iosGuide">
+  <div class="modal-card">
+    <h3>📲 添加到主屏幕</h3>
+    <div class="modal-steps">
+      <div class="modal-step">
+        <div class="modal-step-num">1</div>
+        <div class="modal-step-text">点击底部工具栏的 <strong>分享按钮</strong>（方框带箭头 ↑）</div>
+      </div>
+      <div class="modal-step">
+        <div class="modal-step-num">2</div>
+        <div class="modal-step-text">在弹出菜单中找到 <strong>「添加到主屏幕」</strong></div>
+      </div>
+      <div class="modal-step">
+        <div class="modal-step-num">3</div>
+        <div class="modal-step-text">点击右上角「添加」，完成！</div>
+      </div>
+    </div>
+    <button class="modal-close" onclick="document.getElementById('iosGuide').classList.add('hidden')">我知道了</button>
+  </div>
+</div>
 
 <script src="data.js"></script>
 <script>
@@ -502,42 +561,73 @@ document.getElementById('filters').addEventListener('click', function(e) {
   renderAll();
 });
 
-// ============ PWA INSTALL ============
+// ============ PWA INSTALL (全浏览器支持) ============
 let deferredPrompt;
 const installBanner = document.getElementById('installBanner');
 const installBtn = document.getElementById('installBtn');
 const installDismiss = document.getElementById('installDismiss');
+const installBtnHeader = document.getElementById('installBtnHeader');
+const iosGuide = document.getElementById('iosGuide');
+
+// Detect iOS
+const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
   installBanner.style.display = 'block';
+  installBtnHeader.style.display = ''; // Show header button
 });
 
 window.addEventListener('appinstalled', () => {
   installBanner.style.display = 'none';
   deferredPrompt = null;
+  installBtnHeader.classList.add('installed');
+  installBtnHeader.textContent = '已安装';
   showToast('应用已安装到主屏幕！');
 });
 
-installBtn.addEventListener('click', async () => {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  const result = await deferredPrompt.userChoice;
-  if (result.outcome === 'accepted') {
-    installBanner.style.display = 'none';
-  }
-  deferredPrompt = null;
-});
-
-installDismiss.addEventListener('click', () => {
+// Already installed → update header button
+if (isStandalone) {
   installBanner.style.display = 'none';
-});
-
-// Check if already installed
-if (window.matchMedia('(display-mode: standalone)').matches) {
-  installBanner.style.display = 'none';
+  installBtnHeader.classList.add('installed');
+  installBtnHeader.textContent = '已安装';
+  installBtnHeader.style.display = 'none';
 }
+
+// Unified triggerInstall for all browsers
+function triggerInstall() {
+  // Chromium / Firefox (supports beforeinstallprompt)
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(result => {
+      if (result.outcome === 'accepted') {
+        installBanner.style.display = 'none';
+        installBtnHeader.classList.add('installed');
+        installBtnHeader.textContent = '已安装';
+      }
+      deferredPrompt = null;
+    });
+    return;
+  }
+  // iOS Safari → show guide
+  if (isIOS && !isStandalone) {
+    iosGuide.classList.remove('hidden');
+    return;
+  }
+  // Other browsers → try manual approach or show guide
+  // Firefox sometimes fires beforeinstallprompt late; trigger it
+  if (window.BeforeInstallPromptEvent) {
+    showToast('请等待浏览器安装提示出现');
+    return;
+  }
+  // Last resort: show instructions
+  iosGuide.classList.remove('hidden');
+}
+
+installBtn.addEventListener('click', triggerInstall);
+installDismiss.addEventListener('click', () => { installBanner.style.display = 'none'; });
 
 // ============ INIT ============
 buildAttrMap();
