@@ -1,5 +1,5 @@
-// 环球打卡 Service Worker v3
-const CACHE = 'travel-v3';
+﻿// 环球打卡 Service Worker v3
+const CACHE = 'travel-v4';
 const ASSETS = ['/','/index.html','/data.js','/manifest.json','/icon.svg','/icon-192.png','/icon-512.png'];
 
 // Install: cache assets, take over immediately
