@@ -8,8 +8,14 @@
 <meta name="apple-mobile-web-app-title" content="环球打卡">
 <meta name="theme-color" content="#1a1a2e">
 <meta name="description" content="收录全球1000+景点，记录你的旅行足迹">
-<title>环球打卡 - 世界景点清单</title>
+<title>环球打卡</title>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="环球打卡">
+<meta name="mobile-web-app-capable" content="yes">
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
@@ -151,6 +157,32 @@
   .empty-text{font-size:15px}
   .empty-sub{font-size:12px;color:var(--text2);margin-top:6px}
 
+  /* Install Banner */
+  .install-banner{
+    padding:0 16px;margin-bottom:8px;
+  }
+  .install-banner-inner{
+    display:flex;align-items:center;gap:10px;
+    background:linear-gradient(135deg,#16213e,#1a1a2e);
+    border:1px solid var(--accent);border-radius:14px;padding:12px 14px;
+    position:relative;
+  }
+  .install-icon{font-size:32px;flex-shrink:0}
+  .install-text{flex:1;min-width:0}
+  .install-title{font-size:13px;font-weight:700;color:var(--text)}
+  .install-sub{font-size:11px;color:var(--text2);margin-top:2px}
+  .install-btn{
+    background:var(--accent);color:#fff;border:none;
+    padding:8px 16px;border-radius:16px;font-size:13px;font-weight:600;
+    cursor:pointer;flex-shrink:0;
+  }
+  .install-btn:active{opacity:.8}
+  .install-dismiss{
+    position:absolute;top:4px;right:8px;
+    background:none;border:none;color:var(--text2);font-size:14px;
+    cursor:pointer;padding:4px;
+  }
+
   /* FABs */
   .fab-group{position:fixed;bottom:24px;right:20px;z-index:200;display:flex;flex-direction:column;gap:10px}
   .fab{
@@ -192,6 +224,19 @@
       </div>
     </div>
   </header>
+
+  <!-- Install Banner -->
+  <div class="install-banner" id="installBanner" style="display:none">
+    <div class="install-banner-inner">
+      <div class="install-icon">🌍</div>
+      <div class="install-text">
+        <div class="install-title">添加到主屏幕</div>
+        <div class="install-sub">像原生 App 一样使用，还可离线访问</div>
+      </div>
+      <button class="install-btn" id="installBtn">安装</button>
+      <button class="install-dismiss" id="installDismiss">✕</button>
+    </div>
+  </div>
 
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
@@ -456,6 +501,43 @@ document.getElementById('filters').addEventListener('click', function(e) {
   currentContinent = btn.dataset.continent;
   renderAll();
 });
+
+// ============ PWA INSTALL ============
+let deferredPrompt;
+const installBanner = document.getElementById('installBanner');
+const installBtn = document.getElementById('installBtn');
+const installDismiss = document.getElementById('installDismiss');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBanner.style.display = 'block';
+});
+
+window.addEventListener('appinstalled', () => {
+  installBanner.style.display = 'none';
+  deferredPrompt = null;
+  showToast('应用已安装到主屏幕！');
+});
+
+installBtn.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const result = await deferredPrompt.userChoice;
+  if (result.outcome === 'accepted') {
+    installBanner.style.display = 'none';
+  }
+  deferredPrompt = null;
+});
+
+installDismiss.addEventListener('click', () => {
+  installBanner.style.display = 'none';
+});
+
+// Check if already installed
+if (window.matchMedia('(display-mode: standalone)').matches) {
+  installBanner.style.display = 'none';
+}
 
 // ============ INIT ============
 buildAttrMap();

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#16213e"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="100" fill="url(#bg)"/>
+  <!-- Globe -->
+  <circle cx="256" cy="250" r="150" fill="none" stroke="#3498db" stroke-width="12"/>
+  <ellipse cx="256" cy="250" rx="80" ry="150" fill="none" stroke="#3498db" stroke-width="8"/>
+  <line x1="106" y1="250" x2="406" y2="250" stroke="#3498db" stroke-width="8"/>
+  <line x1="256" y1="100" x2="256" y2="400" stroke="#3498db" stroke-width="8"/>
+  <!-- Checkmark -->
+  <circle cx="370" cy="350" r="55" fill="#2ecc71"/>
+  <polyline points="345,350 365,370 400,330" fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Travel trail dots -->
+  <circle cx="160" cy="150" r="15" fill="#e94560"/>
+  <circle cx="310" cy="130" r="12" fill="#f39c12"/>
+  <circle cx="200" cy="340" r="12" fill="#f39c12"/>
+</svg>
