@@ -577,6 +577,15 @@ const iosGuide = document.getElementById('iosGuide');
 const isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 const isAndroid = /android/.test(navigator.userAgent.toLowerCase());
+const ua = navigator.userAgent.toLowerCase();
+const isChrome = ua.includes('chrome') && !ua.includes('edg') && !ua.includes('opr');
+const isEdge = ua.includes('edg');
+const isSamsung = ua.includes('samsung');
+const isFirefox = ua.includes('firefox');
+const isUC = ua.includes('ucbrowser') || ua.includes('ucweb');
+const isQQ = ua.includes('qq/') || ua.includes('mqqbrowser');
+const isWeChat = ua.includes('micromessenger');
+const isInApp = isWeChat || isQQ || ua.includes('baidu') || ua.includes('bytedance');
 
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
@@ -584,12 +593,19 @@ window.addEventListener('beforeinstallprompt', (e) => {
   window._deferredPrompt = e;
   installBanner.style.display = 'block';
   installBtnHeader.style.display = '';
+  // Update header button text
+  installBtnHeader.textContent = '📲 一键安装';
+  installBtnHeader.style.background = '#2ecc71';
+  console.log('✅ beforeinstallprompt fired! Ready to install.');
 });
 
 // Fallback: use early-captured prompt from inline script
 if (!deferredPrompt && window._deferredPrompt) {
   deferredPrompt = window._deferredPrompt;
   installBanner.style.display = 'block';
+  installBtnHeader.textContent = '📲 一键安装';
+  installBtnHeader.style.background = '#2ecc71';
+  console.log('✅ Using early-captured install prompt');
 }
 
 window.addEventListener('appinstalled', () => {
@@ -609,8 +625,24 @@ if (isStandalone) {
 
 // Unified triggerInstall for all browsers
 function triggerInstall() {
-  // 1. Already have deferredPrompt → use it
+  // 1. Already have deferredPrompt → show native dialog NOW
   if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(result => {
+      if (result.outcome === 'accepted') {
+        installBanner.style.display = 'none';
+        installBtnHeader.classList.add('installed');
+        installBtnHeader.textContent = '已安装';
+        showToast('正在安装...');
+      }
+      deferredPrompt = null;
+    });
+    return;
+  }
+
+  // 2. Try early-captured prompt from inline script
+  if (window._deferredPrompt && window._deferredPrompt !== deferredPrompt) {
+    deferredPrompt = window._deferredPrompt;
     deferredPrompt.prompt();
     deferredPrompt.userChoice.then(result => {
       if (result.outcome === 'accepted') {
@@ -623,14 +655,7 @@ function triggerInstall() {
     return;
   }
 
-  // 2. iOS → always show guide (Safari doesn't support beforeinstallprompt)
-  if (isIOS) {
-    iosGuide.classList.remove('hidden');
-    return;
-  }
-
-  // 3. Browser supports PWA but deferredPrompt not yet fired
-  //    Show specific guide based on browser
+  // 3. Can't trigger native dialog → show manual guide
   showInstallGuide();
 }
 
@@ -649,46 +674,93 @@ function showInstallGuide() {
   const steps = iosGuide.querySelector('.modal-steps');
   const closeBtn = iosGuide.querySelector('.modal-close');
 
-  title.textContent = isAndroid ? '📲 安装到主屏幕' : '📲 安装到主屏幕';
-
-  // Build steps + diagnostic
   let html = '';
 
-  if (isAndroid) {
-    html += `<div class="modal-step">
-      <div class="modal-step-num" style="background:var(--accent)">1</div>
-      <div class="modal-step-text"><strong>方式一：浏览器菜单</strong><br>点击右上角 <strong>⋮</strong> → 选择 <strong>「安装应用」</strong>或<strong>「添加到主屏幕」</strong></div>
+  // Detect browser and provide specific guidance
+  if (isStandalone) {
+    title.textContent = '✅ 已安装';
+    html = `<div style="text-align:center;padding:20px;font-size:14px;color:var(--text2)">应用已在主屏幕运行中</div>`;
+    steps.innerHTML = html;
+    closeBtn.textContent = '关闭';
+    iosGuide.classList.remove('hidden');
+    return;
+  }
+
+  if (isInApp && !isStandalone) {
+    title.textContent = '⚠️ 请用系统浏览器打开';
+    html = `<div class="modal-step">
+      <div class="modal-step-num">1</div>
+      <div class="modal-step-text">你当前在微信/QQ 等 App 内置浏览器中，不支持安装</div>
+    </div>
+    <div class="modal-step">
+      <div class="modal-step-num">2</div>
+      <div class="modal-step-text">点击右上角 <strong>···</strong> → 选择<strong>「在浏览器中打开」</strong></div>
+    </div>
+    <div class="modal-step">
+      <div class="modal-step-num">3</div>
+      <div class="modal-step-text">在系统浏览器打开后，即可安装到主屏幕</div>
     </div>`;
-    html += `<div class="modal-step">
-      <div class="modal-step-num" style="background:var(--accent)">2</div>
-      <div class="modal-step-text"><strong>方式二：等待自动弹窗</strong><br>浏览一会儿页面，浏览器底部会自动弹出安装横幅</div>
+    steps.innerHTML = html;
+    closeBtn.textContent = '我知道了';
+    iosGuide.classList.remove('hidden');
+    return;
+  }
+
+  if (isChrome || isEdge || isSamsung) {
+    title.textContent = '📲 安装到主屏幕';
+    html = `<div class="modal-step">
+      <div class="modal-step-num" style="background:#2ecc71">1</div>
+      <div class="modal-step-text"><strong>方法一：直接安装（推荐）</strong><br>点击浏览器右上角 <strong>⋮</strong> → <strong>「安装应用」</strong></div>
+    </div>
+    <div class="modal-step">
+      <div class="modal-step-num">2</div>
+      <div class="modal-step-text"><strong>方法二：等待自动弹窗</strong><br>正常使用页面，浏览器稍后会自动弹出安装提示</div>
     </div>`;
-    html += `<div class="modal-step">
-      <div class="modal-step-num" style="background:var(--accent)">💡</div>
-      <div class="modal-step-text">Chrome 地址栏右侧有时会有一个 <strong>⊕ 安装图标</strong>，直接点击即可</div>
+  } else if (isFirefox) {
+    title.textContent = '📲 安装到主屏幕';
+    html = `<div class="modal-step">
+      <div class="modal-step-num" style="background:#2ecc71">1</div>
+      <div class="modal-step-text">点击地址栏右侧的 <strong>🏠+ 图标</strong></div>
+    </div>
+    <div class="modal-step">
+      <div class="modal-step-num">2</div>
+      <div class="modal-step-text"><strong>或者：</strong>菜单 → <strong>「安装」</strong></div>
+    </div>`;
+  } else if (isIOS) {
+    title.textContent = '📲 添加到主屏幕';
+    html = `<div class="modal-step">
+      <div class="modal-step-num" style="background:#2ecc71">1</div>
+      <div class="modal-step-text">点击底部 <strong>分享按钮 ↑</strong></div>
+    </div>
+    <div class="modal-step">
+      <div class="modal-step-num">2</div>
+      <div class="modal-step-text">滚动找到 <strong>「添加到主屏幕」</strong></div>
+    </div>
+    <div class="modal-step">
+      <div class="modal-step-num">3</div>
+      <div class="modal-step-text">点击右上角「添加」完成</div>
     </div>`;
   } else {
-    html += `<div class="modal-step">
-      <div class="modal-step-num" style="background:var(--accent)">1</div>
+    title.textContent = '📲 安装到主屏幕';
+    html = `<div class="modal-step">
+      <div class="modal-step-num" style="background:#2ecc71">1</div>
       <div class="modal-step-text">打开浏览器菜单（右上角 ⋮ 或 ⋯）</div>
-    </div>`;
-    html += `<div class="modal-step">
-      <div class="modal-step-num" style="background:var(--accent)">2</div>
+    </div>
+    <div class="modal-step">
+      <div class="modal-step-num">2</div>
       <div class="modal-step-text">找到 <strong>「安装应用」</strong>或<strong>「添加到主屏幕」</strong></div>
-    </div>`;
-    html += `<div class="modal-step">
-      <div class="modal-step-num" style="background:var(--accent)">3</div>
-      <div class="modal-step-text">点击确认后，应用图标会出现在主屏幕</div>
     </div>`;
   }
 
-  // Diagnostic
+  // PWA status diagnostic
   const status = checkPWAStatus();
   html += `<div style="margin-top:12px;padding:10px;background:rgba(255,255,255,0.04);border-radius:10px;font-size:11px;color:var(--text2);text-align:left">`;
-  html += `<div style="font-weight:600;margin-bottom:6px;color:var(--text)">PWA 就绪状态：</div>`;
+  html += `<div style="font-weight:600;margin-bottom:4px;color:var(--text)">安装状态检测：</div>`;
   for (const c of status) {
-    html += `<div style="padding:2px 0">${c.ok ? '✅' : '❌'} ${c.label}</div>`;
+    html += `<div style="padding:1px 0">${c.ok ? '✅' : '❌'} ${c.label}</div>`;
   }
+  html += `<div style="padding:1px 0">${swReady ? '✅' : '⏳'} SW 控制页面</div>`;
+  html += `<div style="padding:1px 0">${deferredPrompt ? '✅' : '⏳'} 安装弹窗就绪</div>`;
   html += `</div>`;
 
   steps.innerHTML = html;
@@ -707,12 +779,41 @@ if (typeof attractions !== 'undefined') {
   window.addEventListener('load', renderAll);
 }
 
-// Service Worker
+// Service Worker - register and wait for control
+let swReady = false;
 if ('serviceWorker' in navigator) {
+  // Listen for SW taking control
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    console.log('SW took control');
+    swReady = true;
+    // Reload once after SW takes control to enable PWA install
+    if (!sessionStorage.getItem('sw_reloaded')) {
+      sessionStorage.setItem('sw_reloaded', '1');
+      location.reload();
+    }
+  });
+
   navigator.serviceWorker.register('sw.js').then(reg => {
     console.log('SW registered:', reg.scope);
-    // Force update to ensure latest version
-    reg.update();
+
+    if (reg.waiting) {
+      reg.waiting.postMessage({type:'SKIP_WAITING'});
+    }
+
+    // If already controlling, we're good
+    if (navigator.serviceWorker.controller) {
+      swReady = true;
+      return;
+    }
+
+    // If installing, wait for activate
+    if (reg.installing) {
+      reg.installing.addEventListener('statechange', e => {
+        if (e.target.state === 'activated') {
+          console.log('SW activated');
+        }
+      });
+    }
   }).catch(err => console.warn('SW failed:', err));
 }
 </script>
