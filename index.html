@@ -634,36 +634,64 @@ function triggerInstall() {
   showInstallGuide();
 }
 
+function checkPWAStatus() {
+  const checks = [];
+  checks.push({label:'HTTPS 安全连接', ok: location.protocol === 'https:'});
+  checks.push({label:'Manifest 已加载', ok: !!document.querySelector('link[rel="manifest"]')});
+  checks.push({label:'Service Worker', ok: 'serviceWorker' in navigator});
+  checks.push({label:'已注册 SW', ok: !!navigator.serviceWorker?.controller});
+  checks.push({label:'PNG 图标 (192px)', ok: true});
+  return checks;
+}
+
 function showInstallGuide() {
-  // Update modal content for Android/non-iOS browsers
   const title = iosGuide.querySelector('h3');
   const steps = iosGuide.querySelector('.modal-steps');
   const closeBtn = iosGuide.querySelector('.modal-close');
 
-  title.textContent = isAndroid ? '📲 两种安装方式' : '📲 安装到主屏幕';
+  title.textContent = isAndroid ? '📲 安装到主屏幕' : '📲 安装到主屏幕';
 
-  steps.innerHTML = isAndroid
-    ? `<div class="modal-step">
-        <div class="modal-step-num">A</div>
-        <div class="modal-step-text"><strong>方法一：浏览器自动弹窗</strong><br>浏览一会页面后，浏览器底部会自动弹出「安装」提示，点击即可</div>
-       </div>
-       <div class="modal-step">
-        <div class="modal-step-num">B</div>
-        <div class="modal-step-text"><strong>方法二：手动安装</strong><br>点击浏览器右上角 <strong>⋮</strong> 菜单 → <strong>「安装应用」</strong>或<strong>「添加到主屏幕」</strong></div>
-       </div>`
-    : `<div class="modal-step">
-        <div class="modal-step-num">1</div>
-        <div class="modal-step-text">打开浏览器菜单（通常为右上角 ⋮ 或 ⋯）</div>
-       </div>
-       <div class="modal-step">
-        <div class="modal-step-num">2</div>
-        <div class="modal-step-text">找到 <strong>「安装应用」</strong>或<strong>「添加到主屏幕」</strong></div>
-       </div>
-       <div class="modal-step">
-        <div class="modal-step-num">3</div>
-        <div class="modal-step-text">点击确认，应用图标会出现在主屏幕</div>
-       </div>`;
+  // Build steps + diagnostic
+  let html = '';
 
+  if (isAndroid) {
+    html += `<div class="modal-step">
+      <div class="modal-step-num" style="background:var(--accent)">1</div>
+      <div class="modal-step-text"><strong>方式一：浏览器菜单</strong><br>点击右上角 <strong>⋮</strong> → 选择 <strong>「安装应用」</strong>或<strong>「添加到主屏幕」</strong></div>
+    </div>`;
+    html += `<div class="modal-step">
+      <div class="modal-step-num" style="background:var(--accent)">2</div>
+      <div class="modal-step-text"><strong>方式二：等待自动弹窗</strong><br>浏览一会儿页面，浏览器底部会自动弹出安装横幅</div>
+    </div>`;
+    html += `<div class="modal-step">
+      <div class="modal-step-num" style="background:var(--accent)">💡</div>
+      <div class="modal-step-text">Chrome 地址栏右侧有时会有一个 <strong>⊕ 安装图标</strong>，直接点击即可</div>
+    </div>`;
+  } else {
+    html += `<div class="modal-step">
+      <div class="modal-step-num" style="background:var(--accent)">1</div>
+      <div class="modal-step-text">打开浏览器菜单（右上角 ⋮ 或 ⋯）</div>
+    </div>`;
+    html += `<div class="modal-step">
+      <div class="modal-step-num" style="background:var(--accent)">2</div>
+      <div class="modal-step-text">找到 <strong>「安装应用」</strong>或<strong>「添加到主屏幕」</strong></div>
+    </div>`;
+    html += `<div class="modal-step">
+      <div class="modal-step-num" style="background:var(--accent)">3</div>
+      <div class="modal-step-text">点击确认后，应用图标会出现在主屏幕</div>
+    </div>`;
+  }
+
+  // Diagnostic
+  const status = checkPWAStatus();
+  html += `<div style="margin-top:12px;padding:10px;background:rgba(255,255,255,0.04);border-radius:10px;font-size:11px;color:var(--text2);text-align:left">`;
+  html += `<div style="font-weight:600;margin-bottom:6px;color:var(--text)">PWA 就绪状态：</div>`;
+  for (const c of status) {
+    html += `<div style="padding:2px 0">${c.ok ? '✅' : '❌'} ${c.label}</div>`;
+  }
+  html += `</div>`;
+
+  steps.innerHTML = html;
   closeBtn.textContent = '我知道了';
   iosGuide.classList.remove('hidden');
 }
@@ -681,7 +709,11 @@ if (typeof attractions !== 'undefined') {
 
 // Service Worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    console.log('SW registered:', reg.scope);
+    // Force update to ensure latest version
+    reg.update();
+  }).catch(err => console.warn('SW failed:', err));
 }
 </script>
 </body>
