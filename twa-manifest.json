@@ -1,0 +1,26 @@
+{
+  "packageId": "com.travel.checklist",
+  "host": "mazhiang528.github.io",
+  "name": "环球打卡",
+  "launcherName": "环球打卡",
+  "display": "standalone",
+  "themeColor": "#1a1a2e",
+  "navigationColor": "#0f0f1a",
+  "backgroundColor": "#0f0f1a",
+  "startUrl": "/travel-checklist/",
+  "iconUrl": "https://mazhiang528.github.io/travel-checklist/icon-512.png",
+  "maskableIconUrl": "https://mazhiang528.github.io/travel-checklist/icon-512.png",
+  "monochromeIconUrl": "https://mazhiang528.github.io/travel-checklist/icon-512.png",
+  "splashScreenFadeOutDuration": 200,
+  "enableNotifications": false,
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": { "enabled": false },
+    "playBilling": { "enabled": false }
+  },
+  "alphaDependencies": { "enabled": false },
+  "signingKey": {
+    "path": "android.keystore",
+    "alias": "travelchecklist"
+  }
+}
