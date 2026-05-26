@@ -121,17 +121,33 @@ window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();win
   }
   .sort-btn.active{color:var(--accent);background:rgba(233,69,96,0.1)}
 
-  /* Country Groups */
+  /* Province Groups */
+  .province-header{
+    display:flex;align-items:center;gap:10px;padding:18px 16px 8px;
+    cursor:pointer;position:sticky;top:178px;background:linear-gradient(135deg,#1a1a2e,#16213e);z-index:6;
+    border-bottom:2px solid var(--accent);margin-bottom:4px;
+  }
+  .province-name{font-weight:800;font-size:16px;color:var(--accent)}
+  .province-meta{font-size:11px;color:var(--text2);margin-left:4px}
+  .province-done{font-size:11px;color:var(--green);margin-left:auto;white-space:nowrap}
+  .province-done:empty{display:none}
+  .province-arrow{color:var(--accent);transition:transform .3s;flex-shrink:0;font-size:12px}
+  .province-header.collapsed .province-arrow{transform:rotate(-90deg)}
+  .province-header.collapsed{border-bottom-color:var(--border)}
+  .province-content{overflow:hidden;transition:max-height .4s ease}
+  .province-content.collapsed{max-height:0!important}
+
+  /* Country (City) Groups */
   .country-header{
-    display:flex;align-items:center;gap:8px;padding:12px 16px 6px;
-    cursor:pointer;position:sticky;top:178px;background:var(--bg);z-index:5;
+    display:flex;align-items:center;gap:6px;padding:10px 16px 4px 24px;
+    cursor:pointer;z-index:5;
     transition:background .2s;
   }
-  .country-name{font-weight:700;font-size:14px}
-  .country-meta{font-size:11px;color:var(--text2);margin-left:4px}
-  .country-done{font-size:11px;color:var(--green);margin-left:auto;white-space:nowrap}
+  .country-name{font-weight:700;font-size:13px}
+  .country-meta{font-size:10px;color:var(--text2);margin-left:4px}
+  .country-done{font-size:10px;color:var(--green);margin-left:auto;white-space:nowrap}
   .country-done:empty{display:none}
-  .country-arrow{color:var(--text2);transition:transform .3s;flex-shrink:0}
+  .country-arrow{color:var(--text2);transition:transform .3s;flex-shrink:0;font-size:10px}
   .country-header.collapsed .country-arrow{transform:rotate(-90deg)}
 
   .attractions{overflow:hidden;transition:max-height .35s ease}
@@ -339,6 +355,7 @@ try {
 let currentContinent = 'all';
 let currentSort = 'default';
 let collapsedCountries = new Set();
+let collapsedProvinces = new Set();
 let totalCount = 0;
 
 // ============ HELPERS ============
@@ -460,6 +477,13 @@ function renderResultInfo() {
     `共 ${filtered.length} 个 · 已打卡 ${vc} 个`;
 }
 
+function getProvince(a) {
+  if (a.co === '中国' && typeof cityProvinceMap !== 'undefined') {
+    return cityProvinceMap[a.ci] || a.co;
+  }
+  return a.co;
+}
+
 function renderList() {
   const filtered = getFiltered();
   const listEl = document.getElementById('list');
@@ -472,37 +496,101 @@ function renderList() {
     return;
   }
 
-  // Group by country
-  const groups = new Map();
-  for (const a of filtered) {
-    if (!groups.has(a.co)) groups.set(a.co, []);
-    groups.get(a.co).push(a);
-  }
+  // Separate Chinese vs international
+  const cnAttrs = filtered.filter(a => a.co === '中国');
+  const intlAttrs = filtered.filter(a => a.co !== '中国');
+
+  // Build groups: province/country → city → attractions
+  // For Chinese: province → city → attrs
+  // For international: country → city → attrs (flat province=country, city=ci)
+  const buildGroups = (attrs, isChina) => {
+    const pMap = new Map();
+    for (const a of attrs) {
+      const pKey = isChina ? getProvince(a) : a.co;
+      if (!pMap.has(pKey)) pMap.set(pKey, new Map());
+      const cMap = pMap.get(pKey);
+      const cKey = isChina ? a.ci : a.ci;
+      if (!cMap.has(cKey)) cMap.set(cKey, []);
+      cMap.get(cKey).push(a);
+    }
+    return pMap;
+  };
+
+  const cnGroups = buildGroups(cnAttrs, true);
+  const intlGroups = buildGroups(intlAttrs, false);
+
+  // Sort provinces
+  const sortMap = (map) => {
+    const entries = [...map.entries()];
+    // move visited-first provinces/countries to top
+    entries.sort((a,b) => {
+      const aVis = [...a[1].values()].flat().filter(x => isVisited(x)).length;
+      const bVis = [...b[1].values()].flat().filter(x => isVisited(x)).length;
+      const aTotal = [...a[1].values()].flat().length;
+      const bTotal = [...b[1].values()].flat().length;
+      if (currentSort === 'visited') return (bVis/bTotal) - (aVis/aTotal);
+      return a[0].localeCompare(b[0], 'zh-CN');
+    });
+    return entries;
+  };
 
   let html = '';
-  for (const [country, attrs] of groups) {
-    const vc = attrs.filter(a => isVisited(a)).length;
-    const tc = attrs.length;
-    const collapsed = collapsedCountries.has(country);
+
+  const renderProvinceBlock = (pName, cityMap) => {
+    const pTotal = [...cityMap.values()].flat().length;
+    const pVis = [...cityMap.values()].flat().filter(a => isVisited(a)).length;
+    const pCollapsed = collapsedProvinces.has(pName);
+    const pct = pTotal > 0 ? Math.round(pVis/pTotal*100) : 0;
     html += `
-      <div class="country-header${collapsed?' collapsed':''}" onclick="toggleCountry(this,'${country.replace(/'/g,"\\'")}')">
-        <span class="country-name">${country}</span>
-        <span class="country-meta">${tc}个</span>
-        <span class="country-done">${vc>0?'✓'+vc:''}</span>
-        <span class="country-arrow">▼</span>
+      <div class="province-header${pCollapsed?' collapsed':''}" onclick="toggleProvince(this,'${pName.replace(/'/g,"\\'")}')">
+        <span class="province-name">${pName}</span>
+        <span class="province-meta">${pTotal}个景点 · ${pct}%</span>
+        <span class="province-done">${pVis>0?'✓'+pVis:''}</span>
+        <span class="province-arrow">▼</span>
       </div>
-      <div class="attractions${collapsed?' collapsed':''}" style="max-height:${tc*58}px">`;
-    for (const a of attrs) {
-      const v = isVisited(a);
+      <div class="province-content${pCollapsed?' collapsed':''}" style="max-height:${pTotal*62 + cityMap.size*34}px">`;
+
+    // Sort cities within province
+    const cityEntries = [...cityMap.entries()];
+    cityEntries.sort((a,b) => a[0].localeCompare(b[0], 'zh-CN'));
+
+    for (const [cityName, attrs] of cityEntries) {
+      const cTotal = attrs.length;
+      const cVis = attrs.filter(a => isVisited(a)).length;
+      const cKey = pName + '||' + cityName;
+      const cCollapsed = collapsedCountries.has(cKey);
       html += `
-        <div class="attr-item${v?' visited':''}" onclick="toggleVisited('${getKey(a).replace(/'/g,"\\'")}')" data-key="${getKey(a).replace(/"/g,'&quot;')}">
-          <div class="cb">${v?'✓':''}</div>
-          <div class="attr-info"><div class="attr-name">${a.n}</div><div class="attr-meta">${a.ci}</div></div>
-          <span class="attr-tag">${a.t}</span>
-        </div>`;
+        <div class="country-header${cCollapsed?' collapsed':''}" onclick="event.stopPropagation();toggleCity(this,'${cKey.replace(/'/g,"\\'")}')">
+          <span class="country-name">${cityName}</span>
+          <span class="country-meta">${cTotal}个</span>
+          <span class="country-done">${cVis>0?'✓'+cVis:''}</span>
+          <span class="country-arrow">▼</span>
+        </div>
+        <div class="attractions${cCollapsed?' collapsed':''}" style="max-height:${cTotal*58}px">`;
+      for (const a of attrs) {
+        const v = isVisited(a);
+        html += `
+          <div class="attr-item${v?' visited':''}" onclick="event.stopPropagation();toggleVisited('${getKey(a).replace(/'/g,"\\'")}')" data-key="${getKey(a).replace(/"/g,'&quot;')}">
+            <div class="cb">${v?'✓':''}</div>
+            <div class="attr-info"><div class="attr-name">${a.n}</div><div class="attr-meta">${a.ci}</div></div>
+            <span class="attr-tag">${a.t}</span>
+          </div>`;
+      }
+      html += '</div>';
     }
     html += '</div>';
+  };
+
+  // Render Chinese provinces first, then international
+  const cnSorted = sortMap(cnGroups);
+  for (const [pName, cityMap] of cnSorted) {
+    renderProvinceBlock(pName, cityMap);
   }
+
+  for (const [countryName, cityMap] of sortMap(intlGroups)) {
+    renderProvinceBlock(countryName, cityMap);
+  }
+
   listEl.innerHTML = html;
 }
 
@@ -525,21 +613,38 @@ function clearSearch() {
   renderAll();
 }
 
-function toggleCountry(header, country) {
-  if (collapsedCountries.has(country)) {
-    collapsedCountries.delete(country);
+function toggleProvince(header, province) {
+  if (collapsedProvinces.has(province)) {
+    collapsedProvinces.delete(province);
   } else {
-    collapsedCountries.add(country);
+    collapsedProvinces.add(province);
+  }
+  header.classList.toggle('collapsed');
+  const pc = header.nextElementSibling;
+  if (pc) pc.classList.toggle('collapsed');
+}
+
+function toggleCity(header, cityKey) {
+  if (collapsedCountries.has(cityKey)) {
+    collapsedCountries.delete(cityKey);
+  } else {
+    collapsedCountries.add(cityKey);
   }
   header.classList.toggle('collapsed');
   const ad = header.nextElementSibling;
   if (ad) ad.classList.toggle('collapsed');
 }
 
+function toggleCountry(header, country) {
+  toggleCity(header, country);
+}
+
 function setSort(sort, el) {
   currentSort = sort;
   document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
   el.classList.add('active');
+  collapsedCountries.clear();
+  collapsedProvinces.clear();
   renderAll();
 }
 
@@ -563,6 +668,8 @@ document.getElementById('filters').addEventListener('click', function(e) {
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   currentContinent = btn.dataset.continent;
+  collapsedCountries.clear();
+  collapsedProvinces.clear();
   renderAll();
 });
 
